@@ -1,1 +1,114 @@
+stages:
+  - search
+  - fetch_resources
+  - check_logs
+  - consolidate
+  - health_check
+
+variables:
+  CLUSTERS: "EDCO EDCR"
+  KUBECONFIG_EDCO: "/path/to/edco/kubeconfig"
+  KUBECONFIG_EDCR: "/path/to/edcr/kubeconfig"
+  INSTANCE_NAME: "${INSTANCE_NAME}"
+
+before_script:
+  - mkdir -p /tmp/output  # Create temp directories for logs and data
+  - export LOG_DIR="/tmp/output"  # Set log directory variable
+
+search_instance:
+  stage: search
+  parallel:
+    matrix:
+      - CLUSTER: "EDCO"
+      - CLUSTER: "EDCR"
+  script:
+    - echo "Searching for instance in cluster $CLUSTER..."
+    - KUBECONFIG_VAR="KUBECONFIG_$CLUSTER"
+    - export KUBECONFIG=${!KUBECONFIG_VAR}
+    - NAMESPACE=$(kubectl get pods --all-namespaces -o wide | grep "$INSTANCE_NAME" | awk '{print $1}')
+    - if [ -n "$NAMESPACE" ]; then
+        echo "Instance found in $CLUSTER cluster, namespace: $NAMESPACE";
+        echo "$CLUSTER, $NAMESPACE, $INSTANCE_NAME" >> $LOG_DIR/found_instances.txt;
+      else
+        echo "Instance not found in $CLUSTER cluster.";
+      fi;
+
+fetch_resources:
+  stage: fetch_resources
+  needs: ["search_instance"]
+  parallel:
+    matrix:
+      - CLUSTER: "EDCO"
+      - CLUSTER: "EDCR"
+  script:
+    - |
+      fetch_resource_data() {
+        export KUBECONFIG=${!KUBECONFIG_VAR}
+        NAMESPACE=$(grep $CLUSTER $LOG_DIR/found_instances.txt | awk -F, '{print $2}')
+        if [ -n "$NAMESPACE" ]; then
+          echo "Fetching resource details for instance in $CLUSTER, namespace: $NAMESPACE..."
+          STS_NAME=$(kubectl get statefulsets --namespace $NAMESPACE | grep "$INSTANCE_NAME" | awk '{print $1}')
+          kubectl get statefulset $STS_NAME --namespace $NAMESPACE -o json | jq '.spec.template.spec.containers[] | {resources}' > $LOG_DIR/resources_$CLUSTER.json
+        fi
+      }
+      fetch_resource_data
+
+check_logs:
+  stage: check_logs
+  needs: ["fetch_resources"]
+  parallel:
+    matrix:
+      - CLUSTER: "EDCO"
+      - CLUSTER: "EDCR"
+  script:
+    - |
+      fetch_logs() {
+        export KUBECONFIG=${!KUBECONFIG_VAR}
+        NAMESPACE=$(grep $CLUSTER $LOG_DIR/found_instances.txt | awk -F, '{print $2}')
+        POD_NAME=$(kubectl get pods --namespace $NAMESPACE | grep "$INSTANCE_NAME" | awk '{print $1}')
+        if [ -n "$POD_NAME" ]; then
+          echo "Fetching logs and events for pod $POD_NAME in $CLUSTER, namespace: $NAMESPACE..."
+          kubectl logs $POD_NAME --namespace $NAMESPACE > $LOG_DIR/logs_$CLUSTER.txt &
+          kubectl get events --namespace $NAMESPACE | grep "$POD_NAME" > $LOG_DIR/events_$CLUSTER.txt &
+          wait  # Wait for both background jobs to finish
+          
+          ERRORS=$(grep "Error" $LOG_DIR/logs_$CLUSTER.txt)
+          if [ -n "$ERRORS" ]; then
+            echo "Error messages found in logs for $POD_NAME:" >> $LOG_DIR/error_logs_$CLUSTER.txt
+            echo "$ERRORS" >> $LOG_DIR/error_logs_$CLUSTER.txt
+          fi
+        fi
+      }
+      fetch_logs
+
+consolidate_report:
+  stage: consolidate
+  needs: ["check_logs"]
+  script:
+    - |
+      echo "Consolidating all data into a single JSON report..."
+      jq -s 'reduce .[] as $item ({}; . * $item)' $LOG_DIR/resources_*.json $LOG_DIR/logs_*.txt $LOG_DIR/error_logs_*.txt > $LOG_DIR/final_report.json
+      cat $LOG_DIR/final_report.json  # Output the final report for visibility
+
+health_check_prod:
+  stage: health_check
+  needs: ["consolidate"]
+  only:
+    - prod
+  script:
+    - export KUBECONFIG=$KUBECONFIG_EDCR
+    - NAMESPACE=$(grep "EDCR" $LOG_DIR/found_instances.txt | awk -F, '{print $2}')
+    - POD_NAME=$(kubectl get pods --namespace $NAMESPACE | grep "$INSTANCE_NAME" | awk '{print $1}')
+    - if [ -n "$POD_NAME" ]; then
+        echo "Pinging the instance $POD_NAME in the prod cluster (EDCR)..."
+        kubectl exec $POD_NAME --namespace $NAMESPACE -- ping -c 4 127.0.0.1 > $LOG_DIR/ping_results.txt
+      fi;
+
+artifacts:
+  paths:
+    - /tmp/output/final_report.json
+    - /tmp/output/ping_results.txt
+    - /tmp/output/logs_*.txt
+    - /tmp/output/error_logs_*.txt
+    - /tmp/output/resources_*.json
 
