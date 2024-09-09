@@ -152,7 +152,7 @@ consolidate_report:
 
 
 
-
+new
 stages:
   - ping-instances
   - consolidate-results
