@@ -157,36 +157,81 @@ consolidate_report:
   - ping-instances
   - consolidate-results
 
-# Define a matrix job to run the pings in parallel
-ping_instances:
+# Define jobs to ping pods in each namespace using their respective runners in parallel
+ping_cache_prod:
   stage: ping-instances
-  parallel:
-    matrix:
-      - NAMESPACE: ["cache-prod", "tp2-cache-prod-a", "tp2-cache-prod-b"]
-        RUNNER: ["cache-utility-edcr", "tp2-edcr-prod-a", "tp2-edcr-prod-b"]
   script:
-    - echo "Pinging pods in $NAMESPACE namespace with runner $RUNNER"
-    - kubectl get pods -n $NAMESPACE -o jsonpath='{.items[*].status.podIP}' | tr ' ' '\n' > pod_ips_$NAMESPACE.txt
-    - touch PING_RESULTS_$NAMESPACE.txt
-    - for pod in $(cat pod_ips_$NAMESPACE.txt); do
+    - echo "Pinging pods in cache-prod namespace with runner cache-utility-edcr"
+    - kubectl get pods -n cache-prod -o jsonpath='{.items[*].status.podIP}' | tr ' ' '\n' > pod_ips_cache_prod.txt
+    - touch PING_RESULTS_CACHE_PROD.txt
+    - for pod in $(cat pod_ips_cache_prod.txt); do
         (
           PING=$(timeout 5 sh -c '(echo ping; sleep 1) | nc -q 1 -v $pod 6379 2>&1');
           if [ $? -eq 124 ]; then
-            echo "$NAMESPACE $pod STS is Down" >> PING_RESULTS_$NAMESPACE.txt;
+            echo "cache-prod $pod STS is Down" >> PING_RESULTS_CACHE_PROD.txt;
           elif echo "$PING" | grep -q "+PONG"; then
-            echo "$NAMESPACE $pod +PONG" >> PING_RESULTS_$NAMESPACE.txt;
+            echo "cache-prod $pod +PONG" >> PING_RESULTS_CACHE_PROD.txt;
           else
-            echo "$NAMESPACE $pod Connection failed: $PING" >> PING_RESULTS_$NAMESPACE.txt;
+            echo "cache-prod $pod Connection failed: $PING" >> PING_RESULTS_CACHE_PROD.txt;
           fi
         ) &
       done;
     wait
   tags:
-    - $RUNNER
+    - cache-utility-edcr
   artifacts:
     paths:
-      - PING_RESULTS_$NAMESPACE.txt
-    expire_in: 1 hour
+      - PING_RESULTS_CACHE_PROD.txt
+
+ping_tp2_cache_prod_a:
+  stage: ping-instances
+  script:
+    - echo "Pinging pods in tp2-cache-prod-a namespace with runner tp2-edcr-prod-a"
+    - kubectl get pods -n tp2-cache-prod-a -o jsonpath='{.items[*].status.podIP}' | tr ' ' '\n' > pod_ips_tp2_cache_prod_a.txt
+    - touch PING_RESULTS_TP2_CACHE_PROD_A.txt
+    - for pod in $(cat pod_ips_tp2_cache_prod_a.txt); do
+        (
+          PING=$(timeout 5 sh -c '(echo ping; sleep 1) | nc -q 1 -v $pod 6379 2>&1');
+          if [ $? -eq 124 ]; then
+            echo "tp2-cache-prod-a $pod STS is Down" >> PING_RESULTS_TP2_CACHE_PROD_A.txt;
+          elif echo "$PING" | grep -q "+PONG"; then
+            echo "tp2-cache-prod-a $pod +PONG" >> PING_RESULTS_TP2_CACHE_PROD_A.txt;
+          else
+            echo "tp2-cache-prod-a $pod Connection failed: $PING" >> PING_RESULTS_TP2_CACHE_PROD_A.txt;
+          fi
+        ) &
+      done;
+    wait
+  tags:
+    - tp2-edcr-prod-a
+  artifacts:
+    paths:
+      - PING_RESULTS_TP2_CACHE_PROD_A.txt
+
+ping_tp2_cache_prod_b:
+  stage: ping-instances
+  script:
+    - echo "Pinging pods in tp2-cache-prod-b namespace with runner tp2-edcr-prod-b"
+    - kubectl get pods -n tp2-cache-prod-b -o jsonpath='{.items[*].status.podIP}' | tr ' ' '\n' > pod_ips_tp2_cache_prod_b.txt
+    - touch PING_RESULTS_TP2_CACHE_PROD_B.txt
+    - for pod in $(cat pod_ips_tp2_cache_prod_b.txt); do
+        (
+          PING=$(timeout 5 sh -c '(echo ping; sleep 1) | nc -q 1 -v $pod 6379 2>&1');
+          if [ $? -eq 124 ]; then
+            echo "tp2-cache-prod-b $pod STS is Down" >> PING_RESULTS_TP2_CACHE_PROD_B.txt;
+          elif echo "$PING" | grep -q "+PONG"; then
+            echo "tp2-cache-prod-b $pod +PONG" >> PING_RESULTS_TP2_CACHE_PROD_B.txt;
+          else
+            echo "tp2-cache-prod-b $pod Connection failed: $PING" >> PING_RESULTS_TP2_CACHE_PROD_B.txt;
+          fi
+        ) &
+      done;
+    wait
+  tags:
+    - tp2-edcr-prod-b
+  artifacts:
+    paths:
+      - PING_RESULTS_TP2_CACHE_PROD_B.txt
 
 # Consolidate all results into a single file
 consolidate_results:
@@ -200,4 +245,3 @@ consolidate_results:
     paths:
       - ALL_PING_RESULTS.txt
   when: always
-
