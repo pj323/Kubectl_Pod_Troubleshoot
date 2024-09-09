@@ -153,7 +153,7 @@ consolidate_report:
 
 
 
-    stages:
+   stages:
   - ping-instances
   - consolidate-results
 
@@ -164,7 +164,8 @@ ping_cache_prod:
     - echo "Pinging pods in cache-prod namespace with runner cache-utility-edcr"
     - kubectl get pods -n cache-prod -o jsonpath='{.items[*].status.podIP}' | tr ' ' '\n' > pod_ips_cache_prod.txt
     - touch PING_RESULTS_CACHE_PROD.txt
-    - for pod in $(cat pod_ips_cache_prod.txt); do
+    - |
+      for pod in $(cat pod_ips_cache_prod.txt); do
         (
           PING=$(timeout 5 sh -c '(echo ping; sleep 1) | nc -q 1 -v $pod 6379 2>&1');
           if [ $? -eq 124 ]; then
@@ -175,8 +176,8 @@ ping_cache_prod:
             echo "cache-prod $pod Connection failed: $PING" >> PING_RESULTS_CACHE_PROD.txt;
           fi
         ) &
-      done;
-    wait
+      done
+    - wait
   tags:
     - cache-utility-edcr
   artifacts:
@@ -189,7 +190,8 @@ ping_tp2_cache_prod_a:
     - echo "Pinging pods in tp2-cache-prod-a namespace with runner tp2-edcr-prod-a"
     - kubectl get pods -n tp2-cache-prod-a -o jsonpath='{.items[*].status.podIP}' | tr ' ' '\n' > pod_ips_tp2_cache_prod_a.txt
     - touch PING_RESULTS_TP2_CACHE_PROD_A.txt
-    - for pod in $(cat pod_ips_tp2_cache_prod_a.txt); do
+    - |
+      for pod in $(cat pod_ips_tp2_cache_prod_a.txt); do
         (
           PING=$(timeout 5 sh -c '(echo ping; sleep 1) | nc -q 1 -v $pod 6379 2>&1');
           if [ $? -eq 124 ]; then
@@ -200,8 +202,8 @@ ping_tp2_cache_prod_a:
             echo "tp2-cache-prod-a $pod Connection failed: $PING" >> PING_RESULTS_TP2_CACHE_PROD_A.txt;
           fi
         ) &
-      done;
-    wait
+      done
+    - wait
   tags:
     - tp2-edcr-prod-a
   artifacts:
@@ -214,7 +216,8 @@ ping_tp2_cache_prod_b:
     - echo "Pinging pods in tp2-cache-prod-b namespace with runner tp2-edcr-prod-b"
     - kubectl get pods -n tp2-cache-prod-b -o jsonpath='{.items[*].status.podIP}' | tr ' ' '\n' > pod_ips_tp2_cache_prod_b.txt
     - touch PING_RESULTS_TP2_CACHE_PROD_B.txt
-    - for pod in $(cat pod_ips_tp2_cache_prod_b.txt); do
+    - |
+      for pod in $(cat pod_ips_tp2_cache_prod_b.txt); do
         (
           PING=$(timeout 5 sh -c '(echo ping; sleep 1) | nc -q 1 -v $pod 6379 2>&1');
           if [ $? -eq 124 ]; then
@@ -225,8 +228,8 @@ ping_tp2_cache_prod_b:
             echo "tp2-cache-prod-b $pod Connection failed: $PING" >> PING_RESULTS_TP2_CACHE_PROD_B.txt;
           fi
         ) &
-      done;
-    wait
+      done
+    - wait
   tags:
     - tp2-edcr-prod-b
   artifacts:
@@ -239,7 +242,7 @@ consolidate_results:
   script:
     - touch ALL_PING_RESULTS.txt
     - for file in PING_RESULTS_*.txt; do
-        cat $file >> ALL_PING_RESULTS.txt
+        cat $file >> ALL_PING_RESULTS.txt;
       done
   artifacts:
     paths:
