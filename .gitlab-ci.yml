@@ -257,3 +257,119 @@ consolidate_results:
     paths:
       - ALL_PING_RESULTS.txt
   when: always
+
+
+
+
+
+
+
+
+
+stages:
+  - ping-instances
+  - consolidate-results
+
+# Define jobs to ping pods in each namespace using their respective runners in parallel
+ping_cache_prod:
+  stage: ping-instances
+  script:
+    - echo "Fetching pod names and IPs for cache-prod namespace"
+    - kubectl get pods -n cache-prod -o custom-columns=POD:.metadata.name,IP:.status.podIP --no-headers > pod_ips_cache_prod.txt
+    - echo "Pod names and IPs for cache-prod:"
+    - cat pod_ips_cache_prod.txt
+    - touch PING_RESULTS_CACHE_PROD.txt
+    - |
+      while read -r pod ip; do
+        (
+          DNS_NAME="$pod.cache-prod"
+          echo "Pinging pod $DNS_NAME ($ip) in cache-prod namespace"
+          PING=$(timeout 5 sh -c '(echo ping; sleep 1) | nc -q 1 -v $ip 6379 2>&1');
+          if [ $? -eq 124 ]; then
+            echo "$DNS_NAME.cache-prod STS is Down" >> PING_RESULTS_CACHE_PROD.txt;
+          elif echo "$PING" | grep -q "+PONG"; then
+            echo "$DNS_NAME.cache-prod +PONG" >> PING_RESULTS_CACHE_PROD.txt;
+          else
+            echo "$DNS_NAME.cache-prod Connection failed: $PING" >> PING_RESULTS_CACHE_PROD.txt;
+          fi
+        ) &
+      done < pod_ips_cache_prod.txt
+    - wait
+  tags:
+    - cache-utility-edcr
+  artifacts:
+    paths:
+      - PING_RESULTS_CACHE_PROD.txt
+
+ping_tp2_cache_prod_a:
+  stage: ping-instances
+  script:
+    - echo "Fetching pod names and IPs for tp2-cache-prod-a namespace"
+    - kubectl get pods -n tp2-cache-prod-a -o custom-columns=POD:.metadata.name,IP:.status.podIP --no-headers > pod_ips_tp2_cache_prod_a.txt
+    - echo "Pod names and IPs for tp2-cache-prod-a:"
+    - cat pod_ips_tp2_cache_prod_a.txt
+    - touch PING_RESULTS_TP2_CACHE_PROD_A.txt
+    - |
+      while read -r pod ip; do
+        (
+          DNS_NAME="$pod.tp2-cache-prod-a"
+          echo "Pinging pod $DNS_NAME ($ip) in tp2-cache-prod-a namespace"
+          PING=$(timeout 5 sh -c '(echo ping; sleep 1) | nc -q 1 -v $ip 6379 2>&1');
+          if [ $? -eq 124 ]; then
+            echo "$DNS_NAME.tp2-cache-prod-a STS is Down" >> PING_RESULTS_TP2_CACHE_PROD_A.txt;
+          elif echo "$PING" | grep -q "+PONG"; then
+            echo "$DNS_NAME.tp2-cache-prod-a +PONG" >> PING_RESULTS_TP2_CACHE_PROD_A.txt;
+          else
+            echo "$DNS_NAME.tp2-cache-prod-a Connection failed: $PING" >> PING_RESULTS_TP2_CACHE_PROD_A.txt;
+          fi
+        ) &
+      done < pod_ips_tp2_cache_prod_a.txt
+    - wait
+  tags:
+    - tp2-edcr-prod-a
+  artifacts:
+    paths:
+      - PING_RESULTS_TP2_CACHE_PROD_A.txt
+
+ping_tp2_cache_prod_b:
+  stage: ping-instances
+  script:
+    - echo "Fetching pod names and IPs for tp2-cache-prod-b namespace"
+    - kubectl get pods -n tp2-cache-prod-b -o custom-columns=POD:.metadata.name,IP:.status.podIP --no-headers > pod_ips_tp2_cache_prod_b.txt
+    - echo "Pod names and IPs for tp2-cache-prod-b:"
+    - cat pod_ips_tp2_cache_prod_b.txt
+    - touch PING_RESULTS_TP2_CACHE_PROD_B.txt
+    - |
+      while read -r pod ip; do
+        (
+          DNS_NAME="$pod.tp2-cache-prod-b"
+          echo "Pinging pod $DNS_NAME ($ip) in tp2-cache-prod-b namespace"
+          PING=$(timeout 5 sh -c '(echo ping; sleep 1) | nc -q 1 -v $ip 6379 2>&1');
+          if [ $? -eq 124 ]; then
+            echo "$DNS_NAME.tp2-cache-prod-b STS is Down" >> PING_RESULTS_TP2_CACHE_PROD_B.txt;
+          elif echo "$PING" | grep -q "+PONG"; then
+            echo "$DNS_NAME.tp2-cache-prod-b +PONG" >> PING_RESULTS_TP2_CACHE_PROD_B.txt;
+          else
+            echo "$DNS_NAME.tp2-cache-prod-b Connection failed: $PING" >> PING_RESULTS_TP2_CACHE_PROD_B.txt;
+          fi
+        ) &
+      done < pod_ips_tp2_cache_prod_b.txt
+    - wait
+  tags:
+    - tp2-edcr-prod-b
+  artifacts:
+    paths:
+      - PING_RESULTS_TP2_CACHE_PROD_B.txt
+
+# Consolidate all results into a single file
+consolidate_results:
+  stage: consolidate-results
+  script:
+    - touch ALL_PING_RESULTS.txt
+    - for file in PING_RESULTS_*.txt; do
+        cat $file >> ALL_PING_RESULTS.txt;
+      done
+  artifacts:
+    paths:
+      - ALL_PING_RESULTS.txt
+  when: always
