@@ -262,3 +262,63 @@ consolidate_results:
     paths:
       - ALL_PING_RESULTS.txt
   when: always
+
+
+
+
+
+
+
+
+
+
+  single
+
+  stages:
+  - ping-instances
+  - consolidate-results
+
+ping_pods_from_nester:
+  stage: ping-instances
+  image: $KUBECTL  # Use the KUBECTL image for kubectl commands
+  script:
+    - echo "Fetching pod names and IPs for tp2-cache-prod-a namespace"
+    - kubectl get pods -n tp2-cache-prod-a -o custom-columns=POD:.metadata.name,IP:.status.podIP --no-headers > pod_ips_tp2_cache_prod_a.txt
+    - echo "Pod names and IPs for tp2-cache-prod-a:"
+    - cat pod_ips_tp2_cache_prod_a.txt
+    - echo "Switching to nester pod for ping operations"
+    - kubectl exec -n tp2-cache-prod-a nester-887864658-qqnkn -- sh -c "
+        touch PING_RESULTS_TP2_CACHE_PROD_A.txt
+        while read -r pod ip; do
+          DNS_NAME=\$pod.tp2-cache-prod-a;
+          echo 'Pinging pod \$DNS_NAME (\$ip) in tp2-cache-prod-a namespace';
+          PING=\$(timeout 5 sh -c '(echo ping; sleep 1) | nc -q 1 -v \$ip 6379 2>&1');
+          echo 'Full output for \$DNS_NAME: \$PING';
+          if [ \$? -eq 124 ]; then
+            echo '\$DNS_NAME.tp2-cache-prod-a STS is Down' >> PING_RESULTS_TP2_CACHE_PROD_A.txt;
+          elif echo '\$PING' | grep -q '+PONG'; then
+            echo '\$DNS_NAME.tp2-cache-prod-a +PONG' >> PING_RESULTS_TP2_CACHE_PROD_A.txt;
+          else
+            echo '\$DNS_NAME.tp2-cache-prod-a Connection failed: \$PING' >> PING_RESULTS_TP2_CACHE_PROD_A.txt;
+          fi
+        done < pod_ips_tp2_cache_prod_a.txt
+      "
+  tags:
+    - tp2-edcr-prod-a
+  artifacts:
+    paths:
+      - PING_RESULTS_TP2_CACHE_PROD_A.txt
+
+# Consolidate all results into a single file
+consolidate_results:
+  stage: consolidate-results
+  script:
+    - touch ALL_PING_RESULTS.txt
+    - for file in PING_RESULTS_*.txt; do
+        cat $file >> ALL_PING_RESULTS.txt
+      done
+  artifacts:
+    paths:
+      - ALL_PING_RESULTS.txt
+  when: always
+
