@@ -153,10 +153,11 @@ consolidate_report:
 
 
 
-  stages:
+stages:
   - ping-instances
   - consolidate-results
 
+# Define jobs to ping pods in each namespace using their respective runners in parallel
 ping_cache_prod:
   stage: ping-instances
   script:
@@ -171,16 +172,16 @@ ping_cache_prod:
           DNS_NAME="$pod.cache-prod"
           echo "Pinging pod $DNS_NAME ($ip) in cache-prod namespace"
           # Running netcat command and printing the output to check the response
-          PING=$(timeout 5 sh -c '(echo ping; sleep 1) | nc -q 1 -v $ip 6379 2>&1');
+          PING=$(timeout 5 sh -c "(echo ping; sleep 1) | nc -q 1 -v $ip 6379 2>&1")
           echo "Ping output for $DNS_NAME: $PING"  # Printing the actual output from the ping command for debugging
           
           # Checking for results and writing to the results file
           if [ $? -eq 124 ]; then
-            echo "$DNS_NAME.cache-prod STS is Down" >> PING_RESULTS_CACHE_PROD.txt;
+            echo "$DNS_NAME.cache-prod STS is Down" >> PING_RESULTS_CACHE_PROD.txt
           elif echo "$PING" | grep -q "+PONG"; then
-            echo "$DNS_NAME.cache-prod +PONG" >> PING_RESULTS_CACHE_PROD.txt;
+            echo "$DNS_NAME.cache-prod +PONG" >> PING_RESULTS_CACHE_PROD.txt
           else
-            echo "$DNS_NAME.cache-prod Connection failed: $PING" >> PING_RESULTS_CACHE_PROD.txt;
+            echo "$DNS_NAME.cache-prod Connection failed: $PING" >> PING_RESULTS_CACHE_PROD.txt
           fi
         ) &
       done < pod_ips_cache_prod.txt
@@ -205,16 +206,16 @@ ping_tp2_cache_prod_a:
           DNS_NAME="$pod.tp2-cache-prod-a"
           echo "Pinging pod $DNS_NAME ($ip) in tp2-cache-prod-a namespace"
           # Running netcat command and printing the output to check the response
-          PING=$(timeout 5 sh -c '(echo ping; sleep 1) | nc -q 1 -v $ip 6379 2>&1');
+          PING=$(timeout 5 sh -c "(echo ping; sleep 1) | nc -q 1 -v $ip 6379 2>&1")
           echo "Ping output for $DNS_NAME: $PING"  # Printing the actual output from the ping command for debugging
           
           # Checking for results and writing to the results file
           if [ $? -eq 124 ]; then
-            echo "$DNS_NAME.tp2-cache-prod-a STS is Down" >> PING_RESULTS_TP2_CACHE_PROD_A.txt;
+            echo "$DNS_NAME.tp2-cache-prod-a STS is Down" >> PING_RESULTS_TP2_CACHE_PROD_A.txt
           elif echo "$PING" | grep -q "+PONG"; then
-            echo "$DNS_NAME.tp2-cache-prod-a +PONG" >> PING_RESULTS_TP2_CACHE_PROD_A.txt;
+            echo "$DNS_NAME.tp2-cache-prod-a +PONG" >> PING_RESULTS_TP2_CACHE_PROD_A.txt
           else
-            echo "$DNS_NAME.tp2-cache-prod-a Connection failed: $PING" >> PING_RESULTS_TP2_CACHE_PROD_A.txt;
+            echo "$DNS_NAME.tp2-cache-prod-a Connection failed: $PING" >> PING_RESULTS_TP2_CACHE_PROD_A.txt
           fi
         ) &
       done < pod_ips_tp2_cache_prod_a.txt
@@ -239,16 +240,16 @@ ping_tp2_cache_prod_b:
           DNS_NAME="$pod.tp2-cache-prod-b"
           echo "Pinging pod $DNS_NAME ($ip) in tp2-cache-prod-b namespace"
           # Running netcat command and printing the output to check the response
-          PING=$(timeout 5 sh -c '(echo ping; sleep 1) | nc -q 1 -v $ip 6379 2>&1');
+          PING=$(timeout 5 sh -c "(echo ping; sleep 1) | nc -q 1 -v $ip 6379 2>&1")
           echo "Ping output for $DNS_NAME: $PING"  # Printing the actual output from the ping command for debugging
           
           # Checking for results and writing to the results file
           if [ $? -eq 124 ]; then
-            echo "$DNS_NAME.tp2-cache-prod-b STS is Down" >> PING_RESULTS_TP2_CACHE_PROD_B.txt;
+            echo "$DNS_NAME.tp2-cache-prod-b STS is Down" >> PING_RESULTS_TP2_CACHE_PROD_B.txt
           elif echo "$PING" | grep -q "+PONG"; then
-            echo "$DNS_NAME.tp2-cache-prod-b +PONG" >> PING_RESULTS_TP2_CACHE_PROD_B.txt;
+            echo "$DNS_NAME.tp2-cache-prod-b +PONG" >> PING_RESULTS_TP2_CACHE_PROD_B.txt
           else
-            echo "$DNS_NAME.tp2-cache-prod-b Connection failed: $PING" >> PING_RESULTS_TP2_CACHE_PROD_B.txt;
+            echo "$DNS_NAME.tp2-cache-prod-b Connection failed: $PING" >> PING_RESULTS_TP2_CACHE_PROD_B.txt
           fi
         ) &
       done < pod_ips_tp2_cache_prod_b.txt
@@ -265,7 +266,7 @@ consolidate_results:
   script:
     - touch ALL_PING_RESULTS.txt
     - for file in PING_RESULTS_*.txt; do
-        cat $file >> ALL_PING_RESULTS.txt;
+        cat $file >> ALL_PING_RESULTS.txt
       done
   artifacts:
     paths:
