@@ -161,12 +161,15 @@ consolidate_report:
 ping_cache_prod:
   stage: ping-instances
   script:
-    - echo "Pinging pods in cache-prod namespace with runner cache-utility-edcr"
+    - echo "Fetching pod IPs for cache-prod namespace"
     - kubectl get pods -n cache-prod -o jsonpath='{.items[*].status.podIP}' | tr ' ' '\n' > pod_ips_cache_prod.txt
+    - echo "Pod IPs for cache-prod:"
+    - cat pod_ips_cache_prod.txt
     - touch PING_RESULTS_CACHE_PROD.txt
     - |
       for pod in $(cat pod_ips_cache_prod.txt); do
         (
+          echo "Pinging pod $pod in cache-prod namespace"
           PING=$(timeout 5 sh -c '(echo ping; sleep 1) | nc -q 1 -v $pod 6379 2>&1');
           if [ $? -eq 124 ]; then
             echo "cache-prod $pod STS is Down" >> PING_RESULTS_CACHE_PROD.txt;
@@ -187,12 +190,15 @@ ping_cache_prod:
 ping_tp2_cache_prod_a:
   stage: ping-instances
   script:
-    - echo "Pinging pods in tp2-cache-prod-a namespace with runner tp2-edcr-prod-a"
+    - echo "Fetching pod IPs for tp2-cache-prod-a namespace"
     - kubectl get pods -n tp2-cache-prod-a -o jsonpath='{.items[*].status.podIP}' | tr ' ' '\n' > pod_ips_tp2_cache_prod_a.txt
+    - echo "Pod IPs for tp2-cache-prod-a:"
+    - cat pod_ips_tp2_cache_prod_a.txt
     - touch PING_RESULTS_TP2_CACHE_PROD_A.txt
     - |
       for pod in $(cat pod_ips_tp2_cache_prod_a.txt); do
         (
+          echo "Pinging pod $pod in tp2-cache-prod-a namespace"
           PING=$(timeout 5 sh -c '(echo ping; sleep 1) | nc -q 1 -v $pod 6379 2>&1');
           if [ $? -eq 124 ]; then
             echo "tp2-cache-prod-a $pod STS is Down" >> PING_RESULTS_TP2_CACHE_PROD_A.txt;
@@ -213,12 +219,15 @@ ping_tp2_cache_prod_a:
 ping_tp2_cache_prod_b:
   stage: ping-instances
   script:
-    - echo "Pinging pods in tp2-cache-prod-b namespace with runner tp2-edcr-prod-b"
+    - echo "Fetching pod IPs for tp2-cache-prod-b namespace"
     - kubectl get pods -n tp2-cache-prod-b -o jsonpath='{.items[*].status.podIP}' | tr ' ' '\n' > pod_ips_tp2_cache_prod_b.txt
+    - echo "Pod IPs for tp2-cache-prod-b:"
+    - cat pod_ips_tp2_cache_prod_b.txt
     - touch PING_RESULTS_TP2_CACHE_PROD_B.txt
     - |
       for pod in $(cat pod_ips_tp2_cache_prod_b.txt); do
         (
+          echo "Pinging pod $pod in tp2-cache-prod-b namespace"
           PING=$(timeout 5 sh -c '(echo ping; sleep 1) | nc -q 1 -v $pod 6379 2>&1');
           if [ $? -eq 124 ]; then
             echo "tp2-cache-prod-b $pod STS is Down" >> PING_RESULTS_TP2_CACHE_PROD_B.txt;
