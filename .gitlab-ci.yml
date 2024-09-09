@@ -131,3 +131,73 @@ consolidate_report:
   tags:
     - cache-utility-edcr
     - cache-utility-test
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    stages:
+  - ping-instances
+  - consolidate-results
+
+# Define a matrix job to run the pings in parallel
+ping_instances:
+  stage: ping-instances
+  parallel:
+    matrix:
+      - NAMESPACE: ["cache-prod", "tp2-cache-prod-a", "tp2-cache-prod-b"]
+        RUNNER: ["cache-utility-edcr", "tp2-edcr-prod-a", "tp2-edcr-prod-b"]
+  script:
+    - echo "Pinging pods in $NAMESPACE namespace with runner $RUNNER"
+    - kubectl get pods -n $NAMESPACE -o jsonpath='{.items[*].status.podIP}' | tr ' ' '\n' > pod_ips_$NAMESPACE.txt
+    - touch PING_RESULTS_$NAMESPACE.txt
+    - for pod in $(cat pod_ips_$NAMESPACE.txt); do
+        (
+          PING=$(timeout 5 sh -c '(echo ping; sleep 1) | nc -q 1 -v $pod 6379 2>&1');
+          if [ $? -eq 124 ]; then
+            echo "$NAMESPACE $pod STS is Down" >> PING_RESULTS_$NAMESPACE.txt;
+          elif echo "$PING" | grep -q "+PONG"; then
+            echo "$NAMESPACE $pod +PONG" >> PING_RESULTS_$NAMESPACE.txt;
+          else
+            echo "$NAMESPACE $pod Connection failed: $PING" >> PING_RESULTS_$NAMESPACE.txt;
+          fi
+        ) &
+      done;
+    wait
+  tags:
+    - $RUNNER
+  artifacts:
+    paths:
+      - PING_RESULTS_$NAMESPACE.txt
+    expire_in: 1 hour
+
+# Consolidate all results into a single file
+consolidate_results:
+  stage: consolidate-results
+  script:
+    - touch ALL_PING_RESULTS.txt
+    - for file in PING_RESULTS_*.txt; do
+        cat $file >> ALL_PING_RESULTS.txt
+      done
+  artifacts:
+    paths:
+      - ALL_PING_RESULTS.txt
+  when: always
+
