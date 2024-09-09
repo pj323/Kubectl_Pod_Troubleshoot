@@ -157,35 +157,31 @@ stages:
   - ping-instances
   - consolidate-results
 
-# Define jobs to ping pods in each namespace using their respective runners in parallel
 ping_cache_prod:
   stage: ping-instances
+  image: $KUBECTL  # Use the KUBECTL image for kubectl commands
   script:
     - echo "Fetching pod names and IPs for cache-prod namespace"
     - kubectl get pods -n cache-prod -o custom-columns=POD:.metadata.name,IP:.status.podIP --no-headers > pod_ips_cache_prod.txt
     - echo "Pod names and IPs for cache-prod:"
     - cat pod_ips_cache_prod.txt
-    - touch PING_RESULTS_CACHE_PROD.txt
-    - |
-      while read -r pod ip; do
-        (
-          DNS_NAME="$pod.cache-prod"
-          echo "Pinging pod $DNS_NAME ($ip) in cache-prod namespace"
-          # Running netcat command and printing the output to check the response
-          PING=$(timeout 5 sh -c "(echo ping; sleep 1) | nc -q 1 -v $ip 6379 2>&1")
-          echo "Ping output for $DNS_NAME: $PING"  # Printing the actual output from the ping command for debugging
-          
-          # Checking for results and writing to the results file
-          if [ $? -eq 124 ]; then
-            echo "$DNS_NAME.cache-prod STS is Down" >> PING_RESULTS_CACHE_PROD.txt
-          elif echo "$PING" | grep -q "+PONG"; then
-            echo "$DNS_NAME.cache-prod +PONG" >> PING_RESULTS_CACHE_PROD.txt
+    - echo "Switching to nester pod for ping operations"
+    - kubectl exec -n nester-namespace nester-pod -- sh -c "
+        touch PING_RESULTS_CACHE_PROD.txt
+        while read -r pod ip; do
+          DNS_NAME=\$pod.cache-prod;
+          echo 'Pinging pod \$DNS_NAME (\$ip) in cache-prod namespace';
+          PING=\$(timeout 5 sh -c '(echo ping; sleep 1) | nc -q 1 -v \$ip 6379 2>&1');
+          echo 'Full output for \$DNS_NAME: \$PING';
+          if [ \$? -eq 124 ]; then
+            echo '\$DNS_NAME.cache-prod STS is Down' >> PING_RESULTS_CACHE_PROD.txt;
+          elif echo '\$PING' | grep -q '+PONG'; then
+            echo '\$DNS_NAME.cache-prod +PONG' >> PING_RESULTS_CACHE_PROD.txt;
           else
-            echo "$DNS_NAME.cache-prod Connection failed: $PING" >> PING_RESULTS_CACHE_PROD.txt
+            echo '\$DNS_NAME.cache-prod Connection failed: \$PING' >> PING_RESULTS_CACHE_PROD.txt;
           fi
-        ) &
-      done < pod_ips_cache_prod.txt
-    - wait
+        done < pod_ips_cache_prod.txt
+      "
   tags:
     - cache-utility-edcr
   artifacts:
@@ -194,32 +190,29 @@ ping_cache_prod:
 
 ping_tp2_cache_prod_a:
   stage: ping-instances
+  image: $KUBECTL  # Use the KUBECTL image for kubectl commands
   script:
     - echo "Fetching pod names and IPs for tp2-cache-prod-a namespace"
     - kubectl get pods -n tp2-cache-prod-a -o custom-columns=POD:.metadata.name,IP:.status.podIP --no-headers > pod_ips_tp2_cache_prod_a.txt
     - echo "Pod names and IPs for tp2-cache-prod-a:"
     - cat pod_ips_tp2_cache_prod_a.txt
-    - touch PING_RESULTS_TP2_CACHE_PROD_A.txt
-    - |
-      while read -r pod ip; do
-        (
-          DNS_NAME="$pod.tp2-cache-prod-a"
-          echo "Pinging pod $DNS_NAME ($ip) in tp2-cache-prod-a namespace"
-          # Running netcat command and printing the output to check the response
-          PING=$(timeout 5 sh -c "(echo ping; sleep 1) | nc -q 1 -v $ip 6379 2>&1")
-          echo "Ping output for $DNS_NAME: $PING"  # Printing the actual output from the ping command for debugging
-          
-          # Checking for results and writing to the results file
-          if [ $? -eq 124 ]; then
-            echo "$DNS_NAME.tp2-cache-prod-a STS is Down" >> PING_RESULTS_TP2_CACHE_PROD_A.txt
-          elif echo "$PING" | grep -q "+PONG"; then
-            echo "$DNS_NAME.tp2-cache-prod-a +PONG" >> PING_RESULTS_TP2_CACHE_PROD_A.txt
+    - echo "Switching to nester pod for ping operations"
+    - kubectl exec -n nester-namespace nester-pod -- sh -c "
+        touch PING_RESULTS_TP2_CACHE_PROD_A.txt
+        while read -r pod ip; do
+          DNS_NAME=\$pod.tp2-cache-prod-a;
+          echo 'Pinging pod \$DNS_NAME (\$ip) in tp2-cache-prod-a namespace';
+          PING=\$(timeout 5 sh -c '(echo ping; sleep 1) | nc -q 1 -v \$ip 6379 2>&1');
+          echo 'Full output for \$DNS_NAME: \$PING';
+          if [ \$? -eq 124 ]; then
+            echo '\$DNS_NAME.tp2-cache-prod-a STS is Down' >> PING_RESULTS_TP2_CACHE_PROD_A.txt;
+          elif echo '\$PING' | grep -q '+PONG'; then
+            echo '\$DNS_NAME.tp2-cache-prod-a +PONG' >> PING_RESULTS_TP2_CACHE_PROD_A.txt;
           else
-            echo "$DNS_NAME.tp2-cache-prod-a Connection failed: $PING" >> PING_RESULTS_TP2_CACHE_PROD_A.txt
+            echo '\$DNS_NAME.tp2-cache-prod-a Connection failed: \$PING' >> PING_RESULTS_TP2_CACHE_PROD_A.txt;
           fi
-        ) &
-      done < pod_ips_tp2_cache_prod_a.txt
-    - wait
+        done < pod_ips_tp2_cache_prod_a.txt
+      "
   tags:
     - tp2-edcr-prod-a
   artifacts:
@@ -228,32 +221,29 @@ ping_tp2_cache_prod_a:
 
 ping_tp2_cache_prod_b:
   stage: ping-instances
+  image: $KUBECTL  # Use the KUBECTL image for kubectl commands
   script:
     - echo "Fetching pod names and IPs for tp2-cache-prod-b namespace"
     - kubectl get pods -n tp2-cache-prod-b -o custom-columns=POD:.metadata.name,IP:.status.podIP --no-headers > pod_ips_tp2_cache_prod_b.txt
     - echo "Pod names and IPs for tp2-cache-prod-b:"
     - cat pod_ips_tp2_cache_prod_b.txt
-    - touch PING_RESULTS_TP2_CACHE_PROD_B.txt
-    - |
-      while read -r pod ip; do
-        (
-          DNS_NAME="$pod.tp2-cache-prod-b"
-          echo "Pinging pod $DNS_NAME ($ip) in tp2-cache-prod-b namespace"
-          # Running netcat command and printing the output to check the response
-          PING=$(timeout 5 sh -c "(echo ping; sleep 1) | nc -q 1 -v $ip 6379 2>&1")
-          echo "Ping output for $DNS_NAME: $PING"  # Printing the actual output from the ping command for debugging
-          
-          # Checking for results and writing to the results file
-          if [ $? -eq 124 ]; then
-            echo "$DNS_NAME.tp2-cache-prod-b STS is Down" >> PING_RESULTS_TP2_CACHE_PROD_B.txt
-          elif echo "$PING" | grep -q "+PONG"; then
-            echo "$DNS_NAME.tp2-cache-prod-b +PONG" >> PING_RESULTS_TP2_CACHE_PROD_B.txt
+    - echo "Switching to nester pod for ping operations"
+    - kubectl exec -n nester-namespace nester-pod -- sh -c "
+        touch PING_RESULTS_TP2_CACHE_PROD_B.txt
+        while read -r pod ip; do
+          DNS_NAME=\$pod.tp2-cache-prod-b;
+          echo 'Pinging pod \$DNS_NAME (\$ip) in tp2-cache-prod-b namespace';
+          PING=\$(timeout 5 sh -c '(echo ping; sleep 1) | nc -q 1 -v \$ip 6379 2>&1');
+          echo 'Full output for \$DNS_NAME: \$PING';
+          if [ \$? -eq 124 ]; then
+            echo '\$DNS_NAME.tp2-cache-prod-b STS is Down' >> PING_RESULTS_TP2_CACHE_PROD_B.txt;
+          elif echo '\$PING' | grep -q '+PONG'; then
+            echo '\$DNS_NAME.tp2-cache-prod-b +PONG' >> PING_RESULTS_TP2_CACHE_PROD_B.txt;
           else
-            echo "$DNS_NAME.tp2-cache-prod-b Connection failed: $PING" >> PING_RESULTS_TP2_CACHE_PROD_B.txt
+            echo '\$DNS_NAME.tp2-cache-prod-b Connection failed: \$PING' >> PING_RESULTS_TP2_CACHE_PROD_B.txt;
           fi
-        ) &
-      done < pod_ips_tp2_cache_prod_b.txt
-    - wait
+        done < pod_ips_tp2_cache_prod_b.txt
+      "
   tags:
     - tp2-edcr-prod-b
   artifacts:
