@@ -322,3 +322,156 @@ consolidate_results:
     paths:
       - ALL_PING_RESULTS.txt
   when: always
+
+
+
+
+
+
+
+stages:
+  - dns-lookup
+  - ping-instance
+
+variables:
+  CACHE_NAMESPACE: "cache-prod"
+  TP2_CACHE_PROD_A_NAMESPACE: "tp2-cache-prod-a"
+  TP2_CACHE_PROD_B_NAMESPACE: "tp2-cache-prod-b"
+
+# DNS Lookup for cache-prod
+dns-lookup-cache-prod:
+  stage: dns-lookup
+  image: $KUBECTL
+  script:
+    - echo "Performing DNS lookup for $CACHE_NAMESPACE namespace"
+    - for item in $( kubectl -n $CACHE_NAMESPACE get svc -o custom-columns=DATA:metadata.labels.dns --no-headers); do
+        if [[ $item == "<none>" ]]; then
+          ITEM=$item;
+        else
+          DNSNAME=$item;
+        fi;
+        echo $DNSNAME >> DNSNAME.txt;
+        echo $'\n';
+      done;
+    - cat DNSNAME.txt
+    - sort -u DNSNAME.txt > DNSNAMESORTED.txt
+    - DNSNAME="$(cat DNSNAMESORTED.txt)" >> DNSNAMESORTED.txt
+  artifacts:
+    paths:
+      - DNSNAMESORTED.txt
+  tags:
+    - cache-utility-edcr
+  except:
+    - pushes
+    - merge_requests
+
+# DNS Lookup for tp2-cache-prod-a
+dns-lookup-tp2-cache-prod-a:
+  stage: dns-lookup
+  image: $KUBECTL
+  script:
+    - echo "Performing DNS lookup for $TP2_CACHE_PROD_A_NAMESPACE namespace"
+    - for item in $( kubectl -n $TP2_CACHE_PROD_A_NAMESPACE get svc -o custom-columns=DATA:metadata.labels.dns --no-headers); do
+        if [[ $item == "<none>" ]]; then
+          ITEM=$item;
+        else
+          DNSNAME=$item;
+        fi;
+        echo $DNSNAME >> DNSNAME.txt;
+        echo $'\n';
+      done;
+    - cat DNSNAME.txt
+    - sort -u DNSNAME.txt > DNSNAMESORTED.txt
+    - DNSNAME="$(cat DNSNAMESORTED.txt)" >> DNSNAMESORTED.txt
+  artifacts:
+    paths:
+      - DNSNAMESORTED.txt
+  tags:
+    - tp2-edcr-prod-a
+  except:
+    - pushes
+    - merge_requests
+
+# DNS Lookup for tp2-cache-prod-b
+dns-lookup-tp2-cache-prod-b:
+  stage: dns-lookup
+  image: $KUBECTL
+  script:
+    - echo "Performing DNS lookup for $TP2_CACHE_PROD_B_NAMESPACE namespace"
+    - for item in $( kubectl -n $TP2_CACHE_PROD_B_NAMESPACE get svc -o custom-columns=DATA:metadata.labels.dns --no-headers); do
+        if [[ $item == "<none>" ]]; then
+          ITEM=$item;
+        else
+          DNSNAME=$item;
+        fi;
+        echo $DNSNAME >> DNSNAME.txt;
+        echo $'\n';
+      done;
+    - cat DNSNAME.txt
+    - sort -u DNSNAME.txt > DNSNAMESORTED.txt
+    - DNSNAME="$(cat DNSNAMESORTED.txt)" >> DNSNAMESORTED.txt
+  artifacts:
+    paths:
+      - DNSNAMESORTED.txt
+  tags:
+    - tp2-edcr-prod-b
+  except:
+    - pushes
+    - merge_requests
+
+# Ping Instance for cache-prod
+ping-instance-cache-prod:
+  stage: ping-instance
+  image: $NESTER
+  dependencies:
+    - dns-lookup-cache-prod
+  script:
+    - DNSNAME="$(cat DNSNAMESORTED.txt)"
+    - for item in $DNSNAME; do
+        PING=$( (echo ping; sleep 1) | nc -q 1 -v $item 6379);
+        echo "$item ping result: $PING";
+        echo $'\n';
+      done;
+  tags:
+    - cache-utility-edcr
+  except:
+    - pushes
+    - merge_requests
+
+# Ping Instance for tp2-cache-prod-a
+ping-instance-tp2-cache-prod-a:
+  stage: ping-instance
+  image: $NESTER
+  dependencies:
+    - dns-lookup-tp2-cache-prod-a
+  script:
+    - DNSNAME="$(cat DNSNAMESORTED.txt)"
+    - for item in $DNSNAME; do
+        PING=$( (echo ping; sleep 1) | nc -q 1 -v $item 6379);
+        echo "$item ping result: $PING";
+        echo $'\n';
+      done;
+  tags:
+    - tp2-edcr-prod-a
+  except:
+    - pushes
+    - merge_requests
+
+# Ping Instance for tp2-cache-prod-b
+ping-instance-tp2-cache-prod-b:
+  stage: ping-instance
+  image: $NESTER
+  dependencies:
+    - dns-lookup-tp2-cache-prod-b
+  script:
+    - DNSNAME="$(cat DNSNAMESORTED.txt)"
+    - for item in $DNSNAME; do
+        PING=$( (echo ping; sleep 1) | nc -q 1 -v $item 6379);
+        echo "$item ping result: $PING";
+        echo $'\n';
+      done;
+  tags:
+    - tp2-edcr-prod-b
+  except:
+    - pushes
+    - merge_requests
