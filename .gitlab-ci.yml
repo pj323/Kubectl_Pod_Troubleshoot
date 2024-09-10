@@ -274,7 +274,7 @@ consolidate_results:
 
   single
 
-  stages:
+ stages:
   - ping-instances
   - consolidate-results
 
@@ -287,22 +287,23 @@ ping_pods_from_nester:
     - echo "Pod names and IPs for tp2-cache-prod-a:"
     - cat pod_ips_tp2_cache_prod_a.txt
     - echo "Switching to nester pod for ping operations"
-    - kubectl exec -n tp2-cache-prod-a nester-887864658-qqnkn -- sh -c "
+    - |
+      kubectl exec -n tp2-cache-prod-a nester-887864658-qqnkn -- sh -c '
         touch PING_RESULTS_TP2_CACHE_PROD_A.txt
         while read -r pod ip; do
-          DNS_NAME=\$pod.tp2-cache-prod-a;
-          echo 'Pinging pod \$DNS_NAME (\$ip) in tp2-cache-prod-a namespace';
-          PING=\$(timeout 5 sh -c '(echo ping; sleep 1) | nc -q 1 -v \$ip 6379 2>&1');
-          echo 'Full output for \$DNS_NAME: \$PING';
-          if [ \$? -eq 124 ]; then
-            echo '\$DNS_NAME.tp2-cache-prod-a STS is Down' >> PING_RESULTS_TP2_CACHE_PROD_A.txt;
-          elif echo '\$PING' | grep -q '+PONG'; then
-            echo '\$DNS_NAME.tp2-cache-prod-a +PONG' >> PING_RESULTS_TP2_CACHE_PROD_A.txt;
+          DNS_NAME=$pod.tp2-cache-prod-a;
+          echo "Pinging pod $DNS_NAME ($ip) in tp2-cache-prod-a namespace";
+          PING=$(timeout 5 sh -c "(echo ping; sleep 1) | nc -q 1 -v $ip 6379 2>&1");
+          echo "Full output for $DNS_NAME: $PING";
+          if [ $? -eq 124 ]; then
+            echo "$DNS_NAME.tp2-cache-prod-a STS is Down" >> PING_RESULTS_TP2_CACHE_PROD_A.txt;
+          elif echo "$PING" | grep -q "+PONG"; then
+            echo "$DNS_NAME.tp2-cache-prod-a +PONG" >> PING_RESULTS_TP2_CACHE_PROD_A.txt;
           else
-            echo '\$DNS_NAME.tp2-cache-prod-a Connection failed: \$PING' >> PING_RESULTS_TP2_CACHE_PROD_A.txt;
+            echo "$DNS_NAME.tp2-cache-prod-a Connection failed: $PING" >> PING_RESULTS_TP2_CACHE_PROD_A.txt;
           fi
         done < pod_ips_tp2_cache_prod_a.txt
-      "
+      '
   tags:
     - tp2-edcr-prod-a
   artifacts:
@@ -321,4 +322,3 @@ consolidate_results:
     paths:
       - ALL_PING_RESULTS.txt
   when: always
-
