@@ -475,3 +475,48 @@ ping-instance-tp2-cache-prod-b:
   except:
     - pushes
     - merge_requests
+
+
+
+
+
+
+
+
+
+
+
+
+    #!/bin/bash
+
+# Set your namespace here
+NAMESPACE="tp2-cache-prod-a"
+
+# Fetch DNS names using kubectl and store them in a variable
+DNS_NAMES=$(kubectl -n $NAMESPACE get svc -o custom-columns=DATA:metadata.labels.dns --no-headers | grep -v "<none>")
+
+# Check if any DNS names were found
+if [ -z "$DNS_NAMES" ]; then
+  echo "No DNS names found in namespace $NAMESPACE"
+  exit 1
+fi
+
+# Loop through each DNS name and ping the respective service
+for DNS_NAME in $DNS_NAMES; do
+  echo "Pinging $DNS_NAME on port 6379..."
+
+  # Use nc (netcat) to ping the DNS name on port 6379
+  PING_RESULT=$( (echo ping; sleep 1) | nc -q 1 -v $DNS_NAME 6379 2>&1 ) || true
+
+  # Check the result and print corresponding messages
+  if echo "$PING_RESULT" | grep -q "+PONG"; then
+    echo "$DNS_NAME: +PONG"
+  elif echo "$PING_RESULT" | grep -q "Connection refused"; then
+    echo "$DNS_NAME: Connection refused"
+  else
+    echo "$DNS_NAME: Connection failed - $PING_RESULT"
+  fi
+
+  echo "----------------------------------------"
+done
+
